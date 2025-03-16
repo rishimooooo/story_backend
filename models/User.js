@@ -1,46 +1,64 @@
-import mongoose from "mongoose";
+import mongoose, { Schema, model } from "mongoose";
 import bcrypt from "bcryptjs";
 
-const userSchema = new mongoose.Schema(
+const userSchema = new Schema(
   {
     name: {
       type: String,
-      required: true,
+      required: [true, "Name is required"],
+      trim: true,
     },
     email: {
       type: String,
-      required: true,
+      required: [true, "Email is required"],
       unique: true,
+      lowercase: true,
     },
     password: {
       type: String,
-      required: true,
+      required: [true, "Password is required"],
+      minlength: [8, "Password must be at least 8 characters"],
     },
     profilePicture: {
       type: String, // URL to profile picture
-      default: "https://example.com/default-profile.jpg",
+      default: "https://cdn-icons-png.flaticon.com/512/149/149071.png", // ✅ Valid default profile picture
     },
     bio: {
       type: String,
       default: "Hello! I'm a storyteller.",
+      maxlength: [200, "Bio must be at most 200 characters"],
     },
     contributions: {
       type: Number,
       default: 0, // Increases when a user contributes to a story
     },
+    resetPasswordToken: String,
+    resetPasswordExpire: Date,
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 // ✅ Hash password before saving
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+
+  try {
+    console.log("🔄 Hashing password:", this.password);
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    console.log("✅ Hashed password:", this.password); // Log the hashed password
+  } catch (error) {
+    console.error("❌ Error hashing password:", error);
+    return next(error);
+  }
+
   next();
 });
 
-const User = mongoose.model("User", userSchema);
+// ✅ Validate password
+userSchema.methods.matchPassword = async function (enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
+
+const User = model("User", userSchema);
 export default User;

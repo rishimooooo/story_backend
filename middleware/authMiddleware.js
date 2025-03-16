@@ -1,30 +1,34 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 export const protect = async (req, res, next) => {
-  let token;
+  const authHeader = req.headers.authorization;
+  console.log("🔹 Auth Header:", authHeader);
 
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith("Bearer")
-  ) {
-    try {
-      token = req.headers.authorization.split(" ")[1]; // Extract token from "Bearer <token>"
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = await User.findById(decoded.id).select("-password"); // Exclude password
+  if (!authHeader || !authHeader.startsWith("Bearer")) {
+    console.log("❌ No token provided");
+    return res.status(401).json({ message: "Not authorized, no token" });
+  }
 
-      if (!req.user) {
-        return res.status(401).json({ message: "User not found" });
-      }
+  const token = authHeader.split(" ")[1];
+  console.log("🔹 Extracted Token:", token);
 
-      next();
-    } catch (error) {
-      res.status(401).json({ message: "Not authorized, invalid token" });
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("✅ Decoded Token:", decoded);
+
+    const user = await User.findById(decoded.id).select("-password");
+    console.log("✅ Authenticated User:", user);
+
+    if (!user) {
+      console.log("❌ User not found");
+      return res.status(401).json({ message: "User not found" });
     }
-  } else {
-    res.status(401).json({ message: "Not authorized, no token" });
+
+    req.user = user;
+    next();
+  } catch (error) {
+    console.log("❌ JWT Verification Failed:", error.message);
+    res.status(401).json({ message: "Not authorized, invalid token" });
   }
 };
