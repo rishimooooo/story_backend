@@ -85,7 +85,7 @@ app.use((err, req, res, next) => {
 });
 
 // ✅ Start Server
-const PORT = process.env.PORT || 8080; // ✅ Use Railway's assigned port
+const PORT = process.env.PORT || 5010; // ✅ Use Railway's assigned port
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });

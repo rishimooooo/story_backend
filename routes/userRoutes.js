@@ -1,8 +1,6 @@
 import express from "express";
 import bcrypt from "bcryptjs";
-import multer from "multer";
 import crypto from "crypto";
-
 import User from "../models/User.js";
 import generateToken from "../utils/generateToken.js";
 import { protect } from "../middleware/authMiddleware.js";
@@ -11,7 +9,6 @@ const router = express.Router();
 
 /**
  * ✅ Leaderboard (Top Contributors)
- * Fetches top 10 users based on contributions
  */
 router.get("/leaderboard", async (req, res) => {
   try {
@@ -28,8 +25,7 @@ router.get("/leaderboard", async (req, res) => {
 });
 
 /**
- * ✅ User Registration Route
- * Allows users to sign up with email/password or Google OAuth
+ * ✅ User Registration
  */
 router.post("/register", async (req, res) => {
   try {
@@ -40,7 +36,6 @@ router.post("/register", async (req, res) => {
     }
 
     let user = await User.findOne({ email });
-
     if (user) {
       return res.status(400).json({ message: "User already exists" });
     }
@@ -48,18 +43,13 @@ router.post("/register", async (req, res) => {
     const newUser = new User({
       name,
       email,
+      password,
       googleId,
       profilePicture,
     });
-
-    if (password) {
-      const salt = await bcrypt.genSalt(10);
-      newUser.password = await bcrypt.hash(password, salt);
-    }
-
     await newUser.save();
-    const token = generateToken(newUser._id);
 
+    const token = generateToken(newUser._id);
     res.status(201).json({
       _id: newUser._id,
       name: newUser.name,
@@ -74,19 +64,18 @@ router.post("/register", async (req, res) => {
 });
 
 /**
- * ✅ User Login Route
- * Authenticates users via email/password
+ * ✅ User Login
  */
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-
     const user = await User.findOne({ email });
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await user.matchPassword(password);
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
@@ -100,7 +89,6 @@ router.post("/login", async (req, res) => {
 
 /**
  * ✅ Forgot Password - Generates Reset Token
- * Sends a reset token to the user
  */
 router.post("/forgot-password", async (req, res) => {
   try {
@@ -111,10 +99,9 @@ router.post("/forgot-password", async (req, res) => {
 
     const resetToken = crypto.randomBytes(32).toString("hex");
     user.resetPasswordToken = resetToken;
-    user.resetPasswordExpire = Date.now() + 3600000;
+    user.resetPasswordExpire = Date.now() + 3600000; // 1 hour expiration
 
     await user.save();
-
     res.json({ message: "Password reset token generated", resetToken });
   } catch (error) {
     res
@@ -124,7 +111,7 @@ router.post("/forgot-password", async (req, res) => {
 });
 
 /**
- * ✅ Reset Password - Verifies Token & Updates Password
+ * ✅ Reset Password
  */
 router.post("/reset-password", async (req, res) => {
   try {
@@ -137,8 +124,7 @@ router.post("/reset-password", async (req, res) => {
     if (!user)
       return res.status(400).json({ message: "Invalid or expired token" });
 
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(newPassword, salt);
+    user.password = newPassword;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
 
@@ -183,8 +169,7 @@ router.put("/profile", protect, async (req, res) => {
     user.profilePicture = req.body.profilePicture || user.profilePicture;
 
     if (req.body.password) {
-      const salt = await bcrypt.genSalt(10);
-      user.password = await bcrypt.hash(req.body.password, salt);
+      user.password = req.body.password;
       token = generateToken(user._id);
     }
 

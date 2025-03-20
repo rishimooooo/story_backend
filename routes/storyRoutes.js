@@ -1,6 +1,7 @@
 import express from "express";
 import mongoose from "mongoose";
 import Story from "../models/Story.js";
+import User from "../models/User.js";
 import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
@@ -143,10 +144,9 @@ router.get("/leaderboard", async (req, res) => {
       { $limit: 10 },
     ]);
 
-    const populatedLeaderboard = await Story.populate(leaderboard, {
+    const populatedLeaderboard = await User.populate(leaderboard, {
       path: "_id",
       select: "name profilePicture",
-      model: "User",
     });
 
     res.json(
