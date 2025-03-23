@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import session from "express-session";
+import multer from "multer"; // ✅ Import multer for handling form data
 import passport from "./config/passport.js"; // ✅ Import Passport.js
 import connectDB from "./config/db.js"; // ✅ Import MongoDB connection
 import userRoutes from "./routes/userRoutes.js"; // ✅ Import user routes
@@ -17,6 +18,11 @@ connectDB();
 
 // ✅ Middleware
 app.use(express.json());
+app.use(express.urlencoded({ extended: true })); // Allow URL-encoded data
+
+// ✅ Multer Setup (for handling form-data)
+const upload = multer();
+app.use(upload.none()); // This allows Express to process FormData without files
 
 // ✅ CORS (Fixes frontend issues)
 app.use(

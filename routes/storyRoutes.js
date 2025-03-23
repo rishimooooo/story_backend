@@ -16,12 +16,16 @@ router.post("/", protect, async (req, res) => {
         .json({ message: "Title and content are required" });
     }
 
-    const story = new Story({ title, content, author: req.user._id });
-    const savedStory = await story.save();
+    const story = new Story({
+      title,
+      content,
+      author: req.user._id,
+    });
 
+    const savedStory = await story.save();
     res.status(201).json(savedStory);
   } catch (error) {
-    console.error(error);
+    console.error("Error creating story:", error);
     res
       .status(500)
       .json({ message: "Error creating story", error: error.message });
@@ -50,10 +54,33 @@ router.get("/", async (req, res) => {
     const stories = await query.lean();
     res.json(stories);
   } catch (error) {
-    console.error(error);
+    console.error("Error fetching stories:", error);
     res
       .status(500)
       .json({ message: "Error fetching stories", error: error.message });
+  }
+});
+
+/** ✅ Get Stories by User ID */
+router.get("/user/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid User ID format" });
+    }
+
+    const stories = await Story.find({ author: userId }).populate(
+      "author",
+      "name profilePicture"
+    );
+
+    res.json(stories);
+  } catch (error) {
+    console.error(error);
+    res
+      .status(500)
+      .json({ message: "Error fetching user stories", error: error.message });
   }
 });
 
@@ -61,17 +88,20 @@ router.get("/", async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
+
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: "Invalid Story ID format" });
     }
+
     const story = await Story.findById(id).populate(
       "author",
       "name profilePicture"
     );
     if (!story) return res.status(404).json({ message: "Story not found" });
+
     res.json(story);
   } catch (error) {
-    console.error(error);
+    console.error("Error fetching story:", error);
     res
       .status(500)
       .json({ message: "Error fetching story", error: error.message });
@@ -83,6 +113,7 @@ router.put("/:id", protect, async (req, res) => {
   try {
     const { id } = req.params;
     const { title, content } = req.body;
+
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: "Invalid Story ID format" });
     }
@@ -91,19 +122,23 @@ router.put("/:id", protect, async (req, res) => {
         .status(400)
         .json({ message: "Title or content required for update" });
     }
+
     const story = await Story.findById(id);
     if (!story) return res.status(404).json({ message: "Story not found" });
+
     if (story.author.toString() !== req.user._id.toString()) {
       return res
         .status(403)
         .json({ message: "Not authorized to edit this story" });
     }
+
     story.title = title || story.title;
     story.content = content || story.content;
     const updatedStory = await story.save();
+
     res.json(updatedStory);
   } catch (error) {
-    console.error(error);
+    console.error("Error updating story:", error);
     res
       .status(500)
       .json({ message: "Error updating story", error: error.message });
@@ -114,15 +149,24 @@ router.put("/:id", protect, async (req, res) => {
 router.delete("/:id", protect, async (req, res) => {
   try {
     const { id } = req.params;
+
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: "Invalid Story ID format" });
     }
+
     const story = await Story.findById(id);
     if (!story) return res.status(404).json({ message: "Story not found" });
+
+    if (story.author.toString() !== req.user._id.toString()) {
+      return res
+        .status(403)
+        .json({ message: "Not authorized to delete this story" });
+    }
+
     await story.deleteOne();
     res.json({ message: "Story deleted successfully" });
   } catch (error) {
-    console.error(error);
+    console.error("Error deleting story:", error);
     res
       .status(500)
       .json({ message: "Error deleting story", error: error.message });
@@ -158,7 +202,7 @@ router.get("/leaderboard", async (req, res) => {
       }))
     );
   } catch (error) {
-    console.error(error);
+    console.error("Error fetching leaderboard:", error);
     res
       .status(500)
       .json({ message: "Error fetching leaderboard", error: error.message });
