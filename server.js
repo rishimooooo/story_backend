@@ -25,12 +25,23 @@ const upload = multer();
 app.use(upload.none()); // This allows Express to process FormData without files
 
 // ✅ CORS (Fixes frontend issues)
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://frontend-updated-xi.vercel.app", // ✅ Add Vercel frontend URL
+];
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000", // Change to deployed frontend URL
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("CORS not allowed"));
+      }
+    },
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization", "Accept"],
-    credentials: true, // If using cookies/auth tokens
+    credentials: true, // ✅ Required for cookies/auth tokens
   })
 );
 
@@ -66,8 +77,8 @@ app.get(
 app.get(
   "/auth/google/callback",
   passport.authenticate("google", {
-    successRedirect: process.env.FRONTEND_URL + "/dashboard", // ✅ Redirect to frontend
-    failureRedirect: process.env.FRONTEND_URL + "/login", // ✅ Redirect if login fails
+    successRedirect: "https://frontend-updated-xi.vercel.app/dashboard", // ✅ Redirect to frontend
+    failureRedirect: "https://frontend-updated-xi.vercel.app/login", // ✅ Redirect if login fails
   })
 );
 
